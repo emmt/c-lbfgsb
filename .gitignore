@@ -1,0 +1,12 @@
+*.a
+*.dll
+*.exe
+*.o
+*.so
+*~
+clbfgsb_test1
+clbfgsb_test2
+clbfgsb_test3
+iterate.dat
+devel/
+orig/
