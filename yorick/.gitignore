@@ -1,0 +1,11 @@
+*.a
+*.dll
+*.exe
+*.log
+*.o
+*.out
+*.so
+*~
+ywrap.c
+Makefile
+iterate.dat
