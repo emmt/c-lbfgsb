@@ -11,7 +11,16 @@
  * Copyright (C) 2021, Éric Thiébaut.
  */
 
-func lbfgsb_test1(nil, n=, m=)
+// Make sure "lbfgsb.i" is loaded (to have constants defined).
+if (is_func(lbfgsb_create) == 3) {
+    // Function is an autoload.
+    include, "lbfgsb.i", 3;
+    if (is_func(lbfgsb_create) == 3) {
+        error, "failed to load L-BFGS-B plugin";
+    }
+}
+
+func lbfgsb_test1(nil, n=, m=, fg=)
 /* DOCUMENT lbfgsb_test1, n=..., m=..., fg=...;
 
    This simple example demonstrates how to call the L-BFGS-B code to solve a
@@ -128,7 +137,7 @@ func lbfgsb_test2(nil, n=, m=, fg=)
     x = array(3.0, n);
 
     // Variables to store function value and its gradient.
-    f = 0.0; // initial value is irrelevant
+    f = LBFGSB_NAN; // initial value is irrelevant
     g = array(double, n);
 
     // Run algorithm.
@@ -259,7 +268,7 @@ func lbfgsb_test3(nil, n=, m=, fg=, maxtime=, maxeval=, maxiter=)
     x = array(3.0, n);
 
     // Variables to store function value and its gradient.
-    f = 0.0; // initial value is irrelevant
+    f = LBFGSB_NAN; // initial value is irrelevant
     g = array(double, n);
 
     // Initial time.
