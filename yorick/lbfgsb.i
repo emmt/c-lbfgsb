@@ -54,8 +54,12 @@ extern lbfgsb_create;
 
      - `ctx.task`: the current stage of the algorithm;
 
-     - `ctx.reason`: a detailed textula infromation of the current stage of the
+     - `ctx.reason`: a detailed textual information of the current stage of the
        algorithm.
+
+     - `ctx.step`: the relative length of the step along the search direction.
+
+     - `ctx.theta`: the scaling parameter of the BFGS matrix;
 
      The bounds of the problem `ctx.lower` and `ctx.upper` and parameters
      `ctx.factr`, `ctx.pgtol`, and `ctx.print` can be set with `lbfgsb_config`.

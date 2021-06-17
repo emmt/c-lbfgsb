@@ -194,10 +194,10 @@ static void print_context(void* addr)
     sprintf(buf, "%ld", (long)ctx->print);
     y_print(buf, 0);
     y_print(", factr=", 0);
-    sprintf(buf, "%e", (double)ctx->factr);
+    sprintf(buf, "%.2g", (double)ctx->factr);
     y_print(buf, 0);
     y_print(", pgtol=", 0);
-    sprintf(buf, "%e", (double)ctx->pgtol);
+    sprintf(buf, "%.2g", (double)ctx->pgtol);
     y_print(buf, 0);
     y_print(", task=", 0);
     y_print(task_name(ctx->task), 0);
@@ -285,10 +285,18 @@ static void extract_context(void* addr, char* name)
             ypush_long(ctx->siz);
             return;
         }
+        if (strcmp(name, "step") == 0) {
+            ypush_double(LBFGSB_STEP(ctx));
+            return;
+        }
         break;
     case 't':
         if (strcmp(name, "task") == 0) {
             ypush_long(ctx->task);
+            return;
+        }
+        if (strcmp(name, "theta") == 0) {
+            ypush_double(LBFGSB_THETA(ctx));
             return;
         }
         break;
@@ -430,23 +438,33 @@ void Y_lbfgsb_config(
             // Keyword argument.
             --iarg;
             if (index == factr_index) {
-                double factr = ygets_d(iarg);
-                if (isnan(factr) || factr < 0) {
-                    y_error("bad value for parameter `factr`");
+                if (!yarg_nil(iarg)) {
+                    double factr = ygets_d(iarg);
+                    if (isnan(factr) || factr < 0) {
+                        y_error("bad value for parameter `factr`");
+                    }
+                    ctx->factr = factr;
                 }
-                ctx->factr = factr;
             } else if (index == lower_index) {
-                set_bound(obj, ctx->lower, iarg);
-            } else if (index == pgtol_index) {
-                double pgtol = ygets_d(iarg);
-                if (isnan(pgtol) || pgtol < 0) {
-                    y_error("bad value for parameter `pgtol`");
+                if (!yarg_nil(iarg)) {
+                    set_bound(obj, ctx->lower, iarg);
                 }
-                ctx->pgtol = pgtol;
+            } else if (index == pgtol_index) {
+                if (!yarg_nil(iarg)) {
+                    double pgtol = ygets_d(iarg);
+                    if (isnan(pgtol) || pgtol < 0) {
+                        y_error("bad value for parameter `pgtol`");
+                    }
+                    ctx->pgtol = pgtol;
+                }
             } else if (index == print_index) {
-                ctx->print = ygets_l(iarg);
+                if (!yarg_nil(iarg)) {
+                    ctx->print = ygets_l(iarg);
+                }
             } else if (index == upper_index) {
-                set_bound(obj, ctx->upper, iarg);
+                if (!yarg_nil(iarg)) {
+                    set_bound(obj, ctx->upper, iarg);
+                }
             } else {
                 y_error("unsupported keyword");
             }
@@ -531,68 +549,89 @@ void Y_lbfgsb_iterate(
     int argc)
 {
     if (argc != 4) {
-        y_error("usage: lbfgsb_iterate(cytx, x, f, g)");
+        y_error("usage: lbfgsb_iterate(ctx, x, f, g)");
     }
-    long dims[Y_DIMSIZE], ntot;
-    int iarg, type;
 
     // Get context (1st argument).
-    iarg = argc - 1;
-    context* obj = get_context(iarg);
+    context* obj = get_context(argc - 1);
 
     // Get x (2nd argument).
-    iarg = argc - 2;
-    long x_index = yget_ref(iarg);
+    int x_iarg = argc - 2;
+    long x_index = yget_ref(x_iarg);
     if (x_index < 0) {
         y_error("variables `x` must not be a temporary expression");
     }
-    double* x = ygeta_any(iarg, &ntot, dims, &type);
-    if (!same_dims(dims, obj->dims)) {
+    long x_dims[Y_DIMSIZE], x_ntot;
+    int x_type = Y_VOID;
+    double* x = ygeta_any(x_iarg, &x_ntot, x_dims, &x_type);
+    if (!same_dims(x_dims, obj->dims)) {
         y_error("variables `x` have incompatible dimensions");
     }
-    if (type == Y_DOUBLE) {
-        x_index = -1;
-    } else {
-        x = ygeta_coerce(iarg, x, ntot, dims, type, Y_DOUBLE);
+    if (x_type < Y_CHAR || x_type > Y_DOUBLE) {
+        y_error("variables `x` have non-real type");
     }
 
     // Get f (3rd argument).
-    iarg = argc - 3;
-    long f_index = yget_ref(iarg);
+    int f_iarg = argc - 3;
+    long f_index = yget_ref(f_iarg);
     if (f_index < 0) {
         y_error("function value `f` must not be a temporary expression");
     }
-    double f = ygets_d(iarg);
+    double f;
+    int f_type = yarg_typeid(f_iarg);
+    if (f_type >= Y_CHAR && f_type <= Y_DOUBLE && yarg_rank(f_iarg) == 0) {
+        f = ygets_d(f_iarg);
+    } else {
+        f = 0.0; // FIXME: could be NaN
+        if (obj->ctx->task != LBFGSB_START) {
+            y_error("function value is undefined");
+        }
+        if (f_type != Y_VOID) {
+            y_error("function value `f` must be initialized or a number");
+        }
+    }
+    if (isnan(f)) {
+        if (obj->ctx->task != LBFGSB_START) {
+            y_error("function value is NaN");
+        }
+        f = 0.0; // FIXME: could be NaN
+    }
 
     // Get g (4th argument).
-    iarg = argc - 4;
-    long g_index = yget_ref(iarg);
+    int g_iarg = argc - 4;
+    long g_index = yget_ref(g_iarg);
     if (g_index < 0) {
         y_error("gradient `g` must not be a temporary expression");
     }
-    double* g = ygeta_any(iarg, &ntot, dims, &type);
-    if (!same_dims(dims, obj->dims)) {
-        y_error("gradient `g` have incompatible dimensions");
+    long g_dims[Y_DIMSIZE], g_ntot;
+    int g_type = Y_VOID;
+    double* g = ygeta_any(g_iarg, &g_ntot, g_dims, &g_type);
+    if (!same_dims(g_dims, obj->dims)) {
+        y_error("gradient `g` has incompatible dimensions");
     }
-    if (type == Y_DOUBLE) {
-        g_index = -1;
-    } else {
-        g = ygeta_coerce(iarg, g, ntot, dims, type, Y_DOUBLE);
+    if (g_type < Y_CHAR || g_type > Y_DOUBLE) {
+        y_error("gradient `g` has non-real type");
+    }
+
+    // All arguments have been checked. Convert inputs if needed and redefine
+    // caller's variables.
+    if (x_type != Y_DOUBLE) {
+        x = ygeta_coerce(x_iarg, x, x_ntot, x_dims, x_type, Y_DOUBLE);
+        yput_global(x_index, x_iarg);
+    }
+    if (g_type != Y_DOUBLE) {
+        g = ygeta_coerce(g_iarg, g, g_ntot, g_dims, g_type, Y_DOUBLE);
+        yput_global(g_index, g_iarg);
     }
 
     // Call L-BFGS-B iterator.
     long task = lbfgsb_iterate(obj->ctx, x, &f, g);
 
-    // Redefine output variables as needed.
-    if (x_index >= 0) {
-        yput_global(x_index, argc - 2);
-    }
-    if (g_index >= 0) {
-        yput_global(g_index, argc - 4);
-    }
-    yarg_drop(argc);
+    // Redefine output `f` as needed.
     ypush_double(f);
     yput_global(f_index, 0);
+
+    // Push result.
     ypush_long(task);
 }
 
