@@ -25,7 +25,7 @@ make check
 ```
 
 
-## License
+## License(s)
 
 The FORTRAN code of L-BFGS-B (version 3.0) by Ciyou Zhu, Richard Byrd, Jorge
 Nocedal and Jose Luis Morales is in directory [`lbfgsb-3.0`](./lbfgsb-3.0].
@@ -35,4 +35,4 @@ License*”](./lbfgsb-3.0/License.txt) (aka “*Modified BSD License*” or
 [hure](http://users.iems.northwestern.edu/~nocedal/lbfgsb.html).
 
 The C and Yorick parts (in directories [`src`](./src) and [`yorick`](./yorick))
-are released under the [MIT "expat" license](./LICENSE.md).
+are released under the [Simplified BSD 3-Clause License](./LICENSE.md).
