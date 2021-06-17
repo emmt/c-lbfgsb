@@ -14,7 +14,9 @@
 # overwritten by options on the command line.
 cfg_fc="\$(FC)"
 cfg_fflags=
+cfg_fopt="\$(COPT_DEFAULT)"
 cfg_cc="\$(CC)"
+cfg_copt="\$(COPT_DEFAULT)"
 cfg_cppflags=
 cfg_cflags=
 cfg_ldflags=
@@ -53,12 +55,14 @@ Arguments:
   debug              Turn debug mode on (for this script).
   -h, --help, help   Print this help and exit.
   cc=...             C compiler [$cfg_cc].
-  fc=...             FORTRAN compiler [$cfg_fc].
+  copt=...           C optimization flags [$cfg_copt].
   cppflags=...       Additional preprocessor flags [$cfg_cppflags], for
                      example:
                          CPPFLAGS='-isomedir'
   cflags=...         Additional C compiler flags [$cfg_cflags], for example:
                          CFLAGS='-Wall'
+  fc=...             FORTRAN compiler [$cfg_fc].
+  fopt=...           FORTRAN optimization flags [$cfg_fopt].
   fflags=...         Additional FORTRAN compiler flags [$cfg_fflags].
   ldflags=...        Additional linker flags [$cfg_ldflags].
 EOF
@@ -72,35 +76,18 @@ while test $# -ge 1; do
             cfg_help
             exit 0
             ;;
-        debug )
-            cfg_debug=yes
-            ;;
-        yorick=* )
-            cfg_yorick=$(cfg_opt_value "$cfg_arg")
-            ;;
-        deplibs=* )
-            cfg_deplibs=$(cfg_opt_value "$cfg_arg")
-            ;;
-        cc=* )
-            cfg_cc=$(cfg_opt_value "$cfg_arg")
-            ;;
-        fc=* )
-            cfg_fc=$(cfg_opt_value "$cfg_arg")
-            ;;
-        cppflags=* )
-            cfg_cppflags=$(cfg_opt_value "$cfg_arg")
-            ;;
-        cflags=* )
-            cfg_cflags=$(cfg_opt_value "$cfg_arg")
-            ;;
-        fflags=* )
-            cfg_fflags=$(cfg_opt_value "$cfg_arg")
-            ;;
-        ldflags=* )
-            cfg_ldflags=$(cfg_opt_value "$cfg_arg")
-            ;;
-        * )
-            cfg_die "Unknown option \"$cfg_arg\""
+        debug)      cfg_debug=yes;;
+        yorick=*)   cfg_yorick=$(cfg_opt_value "$cfg_arg");;
+        cc=*)       cfg_cc=$(cfg_opt_value "$cfg_arg");;
+        cflags=*)   cfg_cflags=$(cfg_opt_value "$cfg_arg");;
+        copt=*)     cfg_copt=$(cfg_opt_value "$cfg_arg");;
+        cppflags=*) cfg_cppflags=$(cfg_opt_value "$cfg_arg");;
+        deplibs=*)  cfg_deplibs=$(cfg_opt_value "$cfg_arg");;
+        fc=*)       cfg_fc=$(cfg_opt_value "$cfg_arg");;
+        fflags=*)   cfg_fflags=$(cfg_opt_value "$cfg_arg");;
+        fopt=*)     cfg_fopt=$(cfg_opt_value "$cfg_arg");;
+        ldflags=*)  cfg_ldflags=$(cfg_opt_value "$cfg_arg");;
+        *) cfg_die "Unknown option \"$cfg_arg\"";;
     esac
 done
 
@@ -128,7 +115,9 @@ sed <"${cfg_srcdir}"/Makefile.in >Makefile.tmp \
     -e "s|@YORICK_HOME@|$cfg_yhome|g" \
     -e "s|@YORICK_SITE@|$cfg_ysite|g" \
     -e "s|@PKG_FC@|$cfg_fc|g" \
+    -e "s|@FOPT@|$cfg_fopt|g" \
     -e "s|@PKG_CC@|$cfg_cc|g" \
+    -e "s|@COPT@|$cfg_copt|g" \
     -e "s|@PKG_CFLAGS@|$cfg_cflags|g" \
     -e "s|@PKG_FFLAGS@|$cfg_fflags|g" \
     -e "s|@PKG_LDFLAGS@|$cfg_ldflags|g" \

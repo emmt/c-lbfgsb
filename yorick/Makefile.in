@@ -16,7 +16,8 @@ Y_HOME_PKG =
 # ----------------------------------------------------- optimization flags
 
 # options for make command line, e.g.-   make COPT=-g TGT=exe
-COPT=$(COPT_DEFAULT)
+COPT=@COPT@
+FOPT=@FOPT@
 TGT=$(DEFAULT_TGT)
 
 # ------------------------------------------------ macros for this package
@@ -98,7 +99,7 @@ PKG_CC = @PKG_CC@
 
 # FORTRAN compiler.
 PKG_FC = @PKG_FC@
-FFLAGS = $(COPT) $(Y_CFLAGS) $(PKG_FFLAGS) $(PLUG)
+FFLAGS = $(FOPT) $(Y_CFLAGS) $(PKG_FFLAGS) $(PLUG)
 
 # Dummy default target in case Y_MAKEDIR was not defined:
 dummy-default:
