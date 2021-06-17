@@ -1,7 +1,18 @@
-# A C wrapper for L-BFGS-B algorithm
+# Wrappers for the L-BFGS-B algorithm
 
-This repository provides thin wrappers for using L-BFGS-B algorithm in C and
-Yorick.
+This repository provides thin C and [Yorick](http://yorick.github.com/)
+wrappers for using L-BFGS-B algorithm by Ciyou Zhu, Richard Byrd, Jorge Nocedal
+and Jose Luis Morales.
+
+L-BFGS-B is a numerical method to minimize a multi-variate differentiable
+objective function possibly under separble bound constraints.  The user is
+required to provide the bounds and an initial solution and to compute the
+objective function and its gradient. L-BFGS-B is a quasi-Newton method with low
+memory requirements (*"L"* is for *"Limited memory"*) and which can optionally
+take into account separable bound constraints (the final "*B*") on the
+variables.  To determine efficient search directions, L-BFGS-B approximates the
+Hessian of the objective function by a a limited memory version of the
+Broyden-Fletcher-Goldfarb-Shanno model (*"BFGS"* for short).
 
 
 ## Installation
@@ -23,6 +34,12 @@ To test the software:
 ```sh
 make check
 ```
+
+
+### To install the Yorick plug-in
+
+Follow instructions in [yorick/README.md](yorick/README.md) file, it is not
+needed to install the library first.
 
 
 ## License(s)
