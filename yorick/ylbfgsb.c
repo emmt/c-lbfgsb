@@ -490,9 +490,6 @@ void Y_lbfgsb_stop(
     int valid = 0;
     if (reason != NULL) {
         switch (reason[0]) {
-        case 'C':
-            valid = (strncmp(reason, "CONVERGENCE:", 12) == 0);
-            break;
         case 'S':
             valid = (strncmp(reason, "STOP:", 5) == 0);
             break;
@@ -505,8 +502,8 @@ void Y_lbfgsb_stop(
         }
     }
     if (!valid) {
-        y_error("argument `reason` must start with `\"CONVERGENCE:\", "
-                "`\"STOP:\", `\"WARNING:\", or  `\"ERROR:\"");
+        y_error("argument `reason` must start with `\"STOP:\", "
+                "`\"WARNING:\", or  `\"ERROR:\"");
     }
     ypush_long(lbfgsb_set_task(obj->ctx, reason));
 }

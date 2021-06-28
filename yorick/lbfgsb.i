@@ -195,13 +195,13 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
             }
             if (gnorm <= gtest) {
                 task = lbfgsb_stop(
-                    ctx, "CONVERGENCE: ‖∇f(x)‖ ≤ max(gatol, grtol⋅‖∇f(x0)‖)");
+                    ctx, "STOP: ‖∇f(x)‖ ≤ max(gatol, grtol⋅‖∇f(x0)‖)");
             } else if (f <= fatol) {
                 task = lbfgsb_stop(
-                    ctx, "CONVERGENCE: f(x) ≤ fatol");
+                    ctx, "STOP: f(x) ≤ fatol");
             } else if (iters > 0 && abs(f - f0) <= frtol*max(abs(f), abs(f0))) {
                 task = lbfgsb_stop(
-                    ctx, "CONVERGENCE: |Δf(x)| ≤ frtol⋅|f(x)|");
+                    ctx, "STOP: |Δf(x)| ≤ frtol⋅|f(x)|");
             } else if (xtest) {
                 s = x - x0;
                 snorm = sqrt(sum(s*s));
@@ -209,7 +209,7 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
                 if (snorm <= xatol ||
                     xrtol > 0 && snorm <= xrtol*sqrt(sum(x*x))) {
                     task = lbfgsb_stop(
-                        ctx, "CONVERGENCE: ‖Δx| ≤ max(xatol, xrtol⋅‖x‖)");
+                        ctx, "STOP: ‖Δx| ≤ max(xatol, xrtol⋅‖x‖)");
                 }
             }
             if (verb) {
