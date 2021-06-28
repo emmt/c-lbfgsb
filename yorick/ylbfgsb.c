@@ -259,6 +259,10 @@ static void extract_context(void* addr, char* name)
             ypush_long(LBFGSB_NTOT_FG(ctx));
             return;
         }
+        if (strcmp(name, "nskips") == 0) {
+            ypush_long(LBFGSB_NTOT_SKIP(ctx));
+            return;
+        }
         break;
     case 'p':
         if (strcmp(name, "pgnorm") == 0) {
@@ -486,6 +490,9 @@ void Y_lbfgsb_stop(
     int valid = 0;
     if (reason != NULL) {
         switch (reason[0]) {
+        case 'C':
+            valid = (strncmp(reason, "CONVERGENCE:", 12) == 0);
+            break;
         case 'S':
             valid = (strncmp(reason, "STOP:", 5) == 0);
             break;
@@ -498,8 +505,8 @@ void Y_lbfgsb_stop(
         }
     }
     if (!valid) {
-        y_error("argument `reason` must start with `\"STOP:\", "
-                "`\"WARNING:\", or  `\"ERROR:\"");
+        y_error("argument `reason` must start with `\"CONVERGENCE:\", "
+                "`\"STOP:\", `\"WARNING:\", or  `\"ERROR:\"");
     }
     ypush_long(lbfgsb_set_task(obj->ctx, reason));
 }

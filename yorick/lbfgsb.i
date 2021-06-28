@@ -163,7 +163,6 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
     best_x = [];   // corresponding variables
     evals = 0;     // number of calls to fg
     iters = 0;     // number of iterations
-    projs = 0;     // number of projections onto the feasible set
     if (verb) {
         elapsed = array(double, 3);
         timer, elapsed;
@@ -218,17 +217,17 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
                 t = (elapsed(3) - t0)*1E3; // elapsed milliseconds
                 if (iters < 1) {
                     write, output, format="%s%s\n%s%s\n",
-                        "# Iter.   Time (ms)   Eval.   Proj. ",
+                        "# Iter.   Time (ms)   Eval.   Skips ",
                         "       Obj. Func.           Grad.       Step",
                         "# ----------------------------------",
                         "-----------------------------------------------";
                 }
-                //projs = ctx.nprojs;
+                skips = ctx.nskips;
                 alpha = (iters < 1 ? 0.0 : ctx.step);
                 gnorm = ctx.pgnorm;
                 write, output,
                     format="%7d %11.3f %7d %7d %23.15e %11.3e %11.3e\n",
-                    iters, t, evals, projs, f, gnorm, alpha;
+                    iters, t, evals, skips, f, gnorm, alpha;
             }
             iters += 1;
             if (iters >= maxiter) {
@@ -288,6 +287,9 @@ extern lbfgsb_create;
 
      - `ctx.nevals`: the number of computations of the objective function and
        its gradient;
+
+     - `ctx.nskips`: total number of skipped BFGS updates before the current
+       iteration;
 
      - `ctx.lower`: the lower bounds, initially all set to `-Inf`;
 
