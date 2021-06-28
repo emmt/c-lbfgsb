@@ -13,6 +13,250 @@
 
 if (is_func(plug_in)) plug_in, "ylbfgsb";
 
+func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
+            ftol=, gtol=, xtol=, maxiter=, maxeval=, verb=, output=)
+/* DOCUMENT x = lbfgsb(fg, x0, [f, g, status,] lower=, upper=, mem=);
+
+     Apply L-BFGS-B algorithm to minimize a multi-variate differentiable
+     objective function possibly under separable bound constraints.
+
+     The method has two required arguments: `fg`, the function to call to
+     compute the objective function and its gradient, and `x0`, the initial
+     variables (VMLMB is an iterative method).  The initial variables may be an
+     array of any dimensions.
+
+     The method returns `x` the best solution found during iterations.
+     Arguments `f`, `g` and `status` are optional output variables to store the
+     value and the gradient of the objective at `x` and an integer code
+     indicating the reason of the termination of the algorithm.
+
+     The function `fg` shall be implemented as follows:
+
+         func fg(x, &gx)
+         {
+             fx = ...; // value of the objective function at `x`
+             gx = ...; // gradient of the objective function at `x`
+             return fx;
+         }
+
+     All other settings are specified by keywords:
+
+     - Keywords `upper` and `lower` are to specify a lower and/or an upper
+       bounds for the variables.  If unspecified or set to an empty array, a
+       given bound is considered as unlimited.  Bounds must be conformable with
+       the variables.
+
+     - Keyword `mem` specifies the memory used by the algorithm, that is the
+       number of previous steps memorized to approximate the Hessian of the
+       objective function.  With `mem=0`, the algorithm behaves as a steepest
+       descent method.  The default is `mem=5`.
+
+     - Keywords `ftol`, `gtol` and `xtol` specify tolerances for deciding the
+       convergence of the algorithm.
+
+       Convergence in the function occurs if one of the following conditions
+       hold:
+
+           f ≤ fatol
+           |f - fp| ≤ frtol⋅max(|f|, |fp|)
+
+       where `f` and `fp` are the values of the objective function at the
+       current and previous iterates.  In these conditions, `fatol` and `frtol`
+       are absolute and relative tolerances specified by `ftol` which can be
+       `ftol=[fatol,frtol]` or `ftol=frtol` and assume that `fatol=-Inf`.  The
+       default is `ftol=1e-8`.
+
+       Convergence in the gradient occurs if the following condition holds:
+
+           ‖g‖ ≤ max(0, gatol, grtol⋅‖g0‖)
+
+       where `‖g‖` is the Euclidean norm of the projected gradient, `g0` is the
+       projected gradient at the initial solution.  In this condition, `gatol`
+       and `grtol` are absolute and relative gradient tolerances specified by
+       `gtol` which can be `gtol=[gatol,grtol]` or `gtol=grtol` and assume that
+       `gatol=0`.  The default is `gtol=1e-5`.
+
+       Convergence in the variables occurs if the following condition holds:
+
+           ‖x - xp‖ ≤ max(0, xatol, xrtol*‖x‖)
+
+       where `x` and `xp` are the current and previous variables.  In this
+       condition, `xatol` and `xrtol` are absolute and relative tolerances
+       specified by `xtol` which can be `xtol=[fatol,frtol]` or `xtol=xrtol`
+       and assume that `xatol=0`.  The default is `xtol=1e-6`.
+
+     - Keywords `maxiter` and `maxeval` are to specify a maximum number of
+       algorithm iterations or or evaluations of the objective function
+       implemented by `fg`.  By default, these are unlimited.
+
+     - Keyword `verb`, if positive, specifies to print information every `verb`
+       iterations.  Nothing is printed if `verb ≤ 0`.  By default, `verb = 0`.
+
+     - Keyword `output` specifies the file stream to print information.
+
+
+   SEE ALSO: lbfgsb_config, lbfgsb_create, lbfgsb_iterate, lbfgsb_stop.
+ */
+{
+    // Constants.
+    INF = LBFGSB_INFINITY;
+    NAN = LBFGSB_NAN;
+    TRUE = 1n;
+    FALSE = 0n;
+
+    // Parse settings.
+    if (is_void(mem)) mem = 5;
+    if (is_void(maxiter)) maxiter = INF;
+    if (is_void(maxeval)) maxeval = INF;
+    if (is_void(ftol)) ftol = 1.0E-8;
+    if (is_void(gtol)) gtol = 1.0E-5;
+    if (is_void(xtol)) xtol = 1.0E-6;
+    if (is_void(verb)) verb = FALSE;
+
+    // Tolerances.  Most of these are forced to be nonnegative to simplify
+    // tests.
+    if (is_scalar(ftol)) {
+        fatol = -INF;
+        frtol = max(0.0, ftol);
+    } else {
+        fatol = max(0.0, ftol(1));
+        frtol = max(0.0, ftol(2));
+    }
+    if (is_scalar(gtol)) {
+        gatol = 0.0;
+        grtol = max(0.0, gtol);
+    } else {
+        gatol = max(0.0, gtol(1));
+        grtol = max(0.0, gtol(2));
+    }
+    if (is_scalar(xtol)) {
+        xatol = 0.0;
+        xrtol = max(0.0, xtol);
+    } else {
+        xatol = max(0.0, xtol(1));
+        xrtol = max(0.0, xtol(2));
+    }
+
+    // Bound constraints.  For faster code, unlimited bounds are preferentially
+    // represented by empty arrays.
+    if (is_array(lower) && allof(lower == -INF)) lower = [];
+    if (is_array(upper) && allof(upper == +INF)) upper = [];
+
+    // Create and configure context.
+    ctx = lbfgsb_create(dimsof(x0), mem);
+    lbfgsb_config,
+        ctx,
+        // Specify the bounds.
+        lower = lower,
+        upper = upper,
+        // Suppress the default output and code-supplied stopping tests.
+        print = -1,
+        factr = 0.0,
+        pgtol = 0.0;
+
+    // Other initialization.
+    x = double(x0);// initial iterate (forcing copy)
+    f = 0.0;       // objective function
+    g = array(double, dimsof(x)); // gradient
+    best_f = INF;  // best function value so far
+    best_g = [];   // corresponding gradient
+    best_x = [];   // corresponding variables
+    evals = 0;     // number of calls to fg
+    iters = 0;     // number of iterations
+    projs = 0;     // number of projections onto the feasible set
+    if (verb) {
+        elapsed = array(double, 3);
+        timer, elapsed;
+        t0 = elapsed(3);
+    }
+    f0 = f;
+    gtest = [];
+    xtest = (xatol > 0 || xrtol > 0);
+    while (TRUE) {
+        task = lbfgsb_iterate(ctx, x, f, g);
+        if (task == LBFGSB_FG) {
+            if (evals >= maxeval) {
+                task = lbfgsb_stop(
+                    ctx, "STOP: Too many function evaluations");
+            } else {
+                f = fg(x, g);
+                ++evals;
+                if (f < best_f) {
+                    best_f = f;
+                    best_g = g;
+                    best_x = x;
+                }
+                continue;
+            }
+        }
+        if (task == LBFGSB_NEW_X) {
+            gnorm = ctx.pgnorm;
+            if (gtest == []) {
+                gtest =  max(gatol, grtol*gnorm);
+            }
+            if (gnorm <= gtest) {
+                task = lbfgsb_stop(
+                    ctx, "CONVERGENCE: ‖∇f(x)‖ ≤ max(gatol, grtol⋅‖∇f(x0)‖)");
+            } else if (f <= fatol) {
+                task = lbfgsb_stop(
+                    ctx, "CONVERGENCE: f(x) ≤ fatol");
+            } else if (iters > 0 && abs(f - f0) <= frtol*max(abs(f), abs(f0))) {
+                task = lbfgsb_stop(
+                    ctx, "CONVERGENCE: |Δf(x)| ≤ frtol⋅|f(x)|");
+            } else if (xtest) {
+                s = x - x0;
+                snorm = sqrt(sum(s*s));
+                s = [];
+                if (snorm <= xatol ||
+                    xrtol > 0 && snorm <= xrtol*sqrt(sum(x*x))) {
+                    task = lbfgsb_stop(
+                        ctx, "CONVERGENCE: ‖Δx| ≤ max(xatol, xrtol⋅‖x‖)");
+                }
+            }
+            if (verb) {
+                timer, elapsed;
+                t = (elapsed(3) - t0)*1E3; // elapsed milliseconds
+                if (iters < 1) {
+                    write, output, format="%s%s\n%s%s\n",
+                        "# Iter.   Time (ms)   Eval.   Proj. ",
+                        "       Obj. Func.           Grad.       Step",
+                        "# ----------------------------------",
+                        "-----------------------------------------------";
+                }
+                //projs = ctx.nprojs;
+                alpha = (iters < 1 ? 0.0 : ctx.step);
+                gnorm = ctx.pgnorm;
+                write, output,
+                    format="%7d %11.3f %7d %7d %23.15e %11.3e %11.3e\n",
+                    iters, t, evals, projs, f, gnorm, alpha;
+            }
+            iters += 1;
+            if (iters >= maxiter) {
+                task = lbfgsb_stop(
+                    ctx, "STOP: Too many algorithm iterations");
+            } else {
+                if (evals > 1) {
+                    x0 = x;
+                }
+                continue;
+            }
+        }
+
+        break;
+    }
+
+    // Restore best solution so far and return solution (and status).
+    if (best_f < f) {
+        f = best_f;
+        eq_nocopy, g, best_g;
+        eq_nocopy, x, best_x;
+    }
+    if (verb) {
+        write, output, format="# Termination: %s\n", ctx.reason;
+    }
+    return x;
+}
+
 extern lbfgsb_create;
 /* DOCUMENT ctx = lbfgsb_create(dims, mem);
 

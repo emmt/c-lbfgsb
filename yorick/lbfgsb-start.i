@@ -1,4 +1,5 @@
 autoload, "lbfgsb.i",
+    lbfgsb,
     lbfgsb_config,
     lbfgsb_create,
     lbfgsb_init,
