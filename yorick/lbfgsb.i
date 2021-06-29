@@ -176,7 +176,7 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
         if (task == LBFGSB_FG) {
             if (evals >= maxeval) {
                 task = lbfgsb_stop(
-                    ctx, "STOP: Too many function evaluations");
+                    ctx, "WARNING: Too many function evaluations");
             } else {
                 f = fg(x, g);
                 ++evals;
@@ -231,7 +231,7 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
             iters += 1;
             if (iters >= maxiter) {
                 task = lbfgsb_stop(
-                    ctx, "STOP: Too many algorithm iterations");
+                    ctx, "WARNING: Too many algorithm iterations");
             } else {
                 if (evals > 1) {
                     x0 = x;
