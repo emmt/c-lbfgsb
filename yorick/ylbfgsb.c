@@ -36,12 +36,14 @@ typedef unsigned char byte;
 
 PLUG_API void y_error(const char *) __attribute__ ((noreturn));
 
-static void push_string(const char* str)
+static void push_string(
+    const char* str)
 {
     ypush_q(NULL)[0] = p_strcpy(str);
 }
 
-static inline long numberof(const long dims[])
+static inline long numberof(
+    const long dims[])
 {
     long n = 1;
     if (dims != NULL) {
@@ -54,16 +56,19 @@ static inline long numberof(const long dims[])
 }
 
 static void grow_dims(
-    long dims[], int iarg, long max_ndims)
+    int iarg,
+    long dims[],
+    long max_ndims)
 {
-    long ndims = dims[0];
-    int type = yarg_typeid(iarg);
     if (max_ndims == -1) {
         max_ndims = Y_DIMSIZE - 1;
     }
+    long ndims = dims[0];
+    int type = yarg_typeid(iarg);
     if (type <= Y_LONG) {
         int rank = yarg_rank(iarg);
         if (rank == 0) {
+            // Scalar dimension.
             long dim = ygets_l(iarg);
             if (dim < 1) {
                 goto bad_dim;
@@ -76,6 +81,7 @@ static void grow_dims(
             dims[ndims] = dim;
             return;
         } else if (rank == 1) {
+            // Vector of dimensions.
             long i, ntot;
             long* vals = ygeta_l(iarg, &ntot, NULL);
             if (ntot < 1 || vals[0] != ntot - 1) {
@@ -167,13 +173,15 @@ typedef struct context {
     long dims[Y_DIMSIZE];
 } context;
 
-static void free_context(void* addr)
+static void free_context(
+    void* addr)
 {
     context* obj = (context*)addr;
     lbfgsb_destroy(obj->ctx);
 }
 
-static void print_context(void* addr)
+static void print_context(
+    void* addr)
 {
     char buf[LBFGSB_TASK_LENGTH+1];
     context* obj = (context*)addr;
@@ -205,12 +213,16 @@ static void print_context(void* addr)
 }
 
 // FIXME: ctx(x, f, g) -> task (like lbfgsb_iterate).
-static void eval_context(void* addr, int argc)
+static void eval_context(
+    void* addr,
+    int argc)
 {
     ypush_nil();
 }
 
-static void extract_context(void* addr, char* name)
+static void extract_context(
+    void* addr,
+    char* name)
 {
     char buf[LBFGSB_TASK_LENGTH+1];
     context* obj = (context*)addr;
@@ -221,7 +233,7 @@ static void extract_context(void* addr, char* name)
             int ndims = obj->dims[0];
             long* dims = ypush_l((long[2]){1, ndims+1});
             for (int d = 0; d <= ndims; ++d) {
-                dims[d] =  obj->dims[d];
+                dims[d] = obj->dims[d];
             }
             return;
         }
@@ -280,7 +292,8 @@ static void extract_context(void* addr, char* name)
         break;
     case 'r':
         if (strcmp(name, "reason") == 0) {
-            push_string(lbfgsb_get_task_string(ctx, buf, sizeof(buf)));
+            push_string(lbfgsb_get_task_string(
+                            ctx, buf, LBFGSB_TASK_LENGTH+1));
             return;
         }
         break;
@@ -339,8 +352,8 @@ void Y_lbfgsb_create(
         y_error("usage: lbfgsb_create(dims, mem)");
     }
     long dims[Y_DIMSIZE] = {0};
-    grow_dims(dims, argc - 1, -1);
-    long mem =  ygets_l(argc - 2);
+    grow_dims(argc - 1, dims, -1);
+    long mem = ygets_l(argc - 2);
     if (mem < 1) {
         y_error("argument `mem` must be at least 1");
     }
@@ -352,26 +365,33 @@ void Y_lbfgsb_create(
     obj->ctx = lbfgsb_create(siz, mem);
     if (obj->ctx == NULL) {
         int code = errno;
-        y_error(
-            (code == ENOMEM ?
-             "insufficient memory for creating L-BFGS-B context" :
-             (code == EINVAL ?
-              "invalid argument for creating L-BFGS-B context" :
-              "failed to create L-BFGS-B context")));
+        const char* mesg;
+        if (code == ENOMEM) {
+            mesg = "insufficient memory for creating L-BFGS-B context";
+        } else if (code == EINVAL) {
+            mesg = "invalid argument for creating L-BFGS-B context";
+        } else {
+            mesg = "failed to create L-BFGS-B context";
+        }
+        y_error(mesg);
     }
 }
 
-static void set_bound(context* obj, double* dst, int iarg)
+static void set_bound(
+    context* obj,
+    double* dst,
+    int iarg)
 {
     int rank = yarg_rank(iarg);
     if (rank == 0) {
-        // Scalar.
+        // Scalar argument.  Assume uniform bound.
         double val = ygets_d(iarg);
         long n = obj->ctx->siz;
         for (long i = 0; i < n; ++i) {
-            dst[i] =val;
+            dst[i] = val;
         }
     } else if (rank > 0) {
+        // Array.  Check that dimensions are identical and copy.
         long dims[Y_DIMSIZE], n;
         const double* src = ygeta_d(iarg, &n, dims);
         if (!same_dims(dims, obj->dims)) {
@@ -394,15 +414,23 @@ void Y_lbfgsb_config(
 {
     // Keyword unique indices.
     static long factr_index = -1L;
+    if (factr_index == -1L) {
+        factr_index = yget_global("factr", 0);
+    }
     static long lower_index = -1L;
+    if (lower_index == -1L) {
+        lower_index = yget_global("lower", 0);
+    }
     static long pgtol_index = -1L;
+    if (pgtol_index == -1L) {
+        pgtol_index = yget_global("pgtol", 0);
+    }
     static long print_index = -1L;
+    if (print_index == -1L) {
+        print_index = yget_global("print", 0);
+    }
     static long upper_index = -1L;
     if (upper_index == -1L) {
-        factr_index = yget_global("factr", 0);
-        lower_index = yget_global("lower", 0);
-        pgtol_index = yget_global("pgtol", 0);
-        print_index = yget_global("print", 0);
         upper_index = yget_global("upper", 0);
     }
 
@@ -541,7 +569,7 @@ void Y_lbfgsb_reset(
         }
     }
     if (obj == NULL) {
-        y_error("missing L-BFGS-B context");
+        y_error("usage: lbfgsb_reset(ctx, bounds=0)");
     }
     lbfgsb_reset(obj->ctx, flags);
     if (drop > 0) {
@@ -591,7 +619,7 @@ void Y_lbfgsb_iterate(
             y_error("function value is undefined");
         }
         if (f_type != Y_VOID) {
-            y_error("function value `f` must be initialized or a number");
+            y_error("function value `f` must be uninitialized or a number");
         }
     }
     if (isnan(f)) {
@@ -639,14 +667,18 @@ void Y_lbfgsb_iterate(
     ypush_long(task);
 }
 
-static void define_long(const char* name, long value)
+static void define_long(
+    const char* name,
+    long value)
 {
     ypush_long(value);
     yput_global(yget_global(name, 0), 0);
     yarg_drop(1);
 }
 
-static void define_double(const char* name, double value)
+static void define_double(
+    const char* name,
+    double value)
 {
     ypush_double(value);
     yput_global(yget_global(name, 0), 0);
