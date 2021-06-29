@@ -667,6 +667,63 @@ void Y_lbfgsb_iterate(
     ypush_long(task);
 }
 
+void Y_lbfgsb_pgnorm2(
+    int argc)
+{
+    if (argc != 3) {
+        y_error("usage: lbfgsb_pgnorm2(ctx, x, g)");
+    }
+
+    // Get context (1st argument).
+    context* obj = get_context(argc - 1);
+
+    // Get x (2nd argument).
+    int x_iarg = argc - 2;
+    long x_dims[Y_DIMSIZE], x_ntot;
+    int x_type = Y_VOID;
+    double* x = ygeta_any(x_iarg, &x_ntot, x_dims, &x_type);
+    if (!same_dims(x_dims, obj->dims)) {
+        y_error("variables `x` have incompatible dimensions");
+    }
+    if (x_type < Y_CHAR || x_type > Y_DOUBLE) {
+        y_error("variables `x` have non-real type");
+    }
+
+    // Get g (3rd argument).
+    int g_iarg = argc - 3;
+    long g_dims[Y_DIMSIZE], g_ntot;
+    int g_type = Y_VOID;
+    double* g = ygeta_any(g_iarg, &g_ntot, g_dims, &g_type);
+    if (!same_dims(g_dims, obj->dims)) {
+        y_error("gradient `g` has incompatible dimensions");
+    }
+    if (g_type < Y_CHAR || g_type > Y_DOUBLE) {
+        y_error("gradient `g` has non-real type");
+    }
+
+    // All arguments have been checked. Convert inputs if needed and redefine
+    // caller's variables.
+    if (x_type != Y_DOUBLE) {
+        x = ygeta_coerce(x_iarg, x, x_ntot, x_dims, x_type, Y_DOUBLE);
+    }
+    if (g_type != Y_DOUBLE) {
+        g = ygeta_coerce(g_iarg, g, g_ntot, g_dims, g_type, Y_DOUBLE);
+    }
+
+    lbfgsb_context* ctx = obj->ctx;
+    const double* lower = ctx->lower;
+    const double* upper = ctx->upper;
+    double s = 0;
+    long n = ctx->siz;
+    for (long i = 0; i < n; ++i) {
+        double g_i = g[i];
+        double pg_i = ((((x[i] > lower[i])|(g_i < 0))&
+                        ((x[i] < upper[i])|(g_i > 0))) ? g_i : 0.0);
+        s += pg_i*pg_i;
+    }
+    ypush_double(sqrt(s));
+}
+
 static void define_long(
     const char* name,
     long value)

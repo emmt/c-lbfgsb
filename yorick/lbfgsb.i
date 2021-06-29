@@ -189,7 +189,7 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
             }
         }
         if (task == LBFGSB_NEW_X) {
-            gnorm = ctx.pgnorm;
+            gnorm = lbfgsb_pgnorm2(ctx, x, g);
             if (gtest == []) {
                 gtest =  max(gatol, grtol*gnorm);
             }
@@ -224,7 +224,6 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
                 }
                 skips = ctx.nskips;
                 alpha = (iters < 1 ? 0.0 : ctx.step);
-                gnorm = ctx.pgnorm;
                 write, output,
                     format="%7d %11.3f %7d %7d %23.15e %11.3e %11.3e\n",
                     iters, t, evals, skips, f, gnorm, alpha;
@@ -423,6 +422,16 @@ extern lbfgsb_iterate;
      however be specified, their value is irrelevant).
 
    SEE ALSO: lbfgsb_create, lbfgsb_config, lbfgsb_reset, lbfgsb_stop.
+ */
+
+extern lbfgsb_pgnorm2;
+/* DOCUMENT norm = lbfgsb_pgnorm2(ctx, x, g);
+
+     Compte the Euclidean norm of the projected gradient for the bounds stored
+     by L-BFGS-B context `ctx` given `g` the gradient of the objective function
+     at variables `x`.  The variables must be feasible.
+
+   SEE ALSO: lbfgsb_iterate.
  */
 
 local LBFGSB_INFINITY, LBFGSB_NAN;

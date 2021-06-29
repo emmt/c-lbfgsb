@@ -4,5 +4,6 @@ autoload, "lbfgsb.i",
     lbfgsb_create,
     lbfgsb_init,
     lbfgsb_iterate,
+    lbfgsb_pgnorm2,
     lbfgsb_reset,
     lbfgsb_stop;
