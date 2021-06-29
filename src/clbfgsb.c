@@ -5,7 +5,11 @@
 #include <math.h>
 #include "lbfgsb.h"
 
-#define ARRAY_LENGTH(arr) (sizeof(arr)/sizeof((arr)[0]))
+// Allocate a dynamic array of `n` elements of type `T`.
+#define NEW_ARRAY(n, T)  ((T*)malloc((n)*sizeof(T)))
+
+// Allocate a dynamic array of `n` elements of type `T` filled with zeros.
+#define ZEROS(n, T)  ((T*)malloc((n)*sizeof(T)))
 
 double lbfgsb_timer(void)
 {
@@ -83,8 +87,8 @@ lbfgsb_task lbfgsb_set_task(
     lbfgsb_context* ctx,
     const char*     str)
 {
-    long len1 = strlen(str);
-    long len2 = ARRAY_LENGTH(ctx->wrks.task);
+    long len1 = (str == NULL ? 0 : strlen(str));
+    long len2 = LBFGSB_TASK_LENGTH;
     if (len1 > len2) {
         len1 = len2;
     }
@@ -136,12 +140,16 @@ lbfgsb_context* lbfgsb_create(
     ctx->factr = 1.0e+7;
     ctx->pgtol = 1.0e-6;
     ctx->print = -1; // No output.
-    long n_wa = 2*m*n + 5*n + 11*m*m + 8*m;
-    if ((ctx->lower    = malloc(n*sizeof(double)))    == NULL ||
-        (ctx->upper    = malloc(n*sizeof(double)))    == NULL ||
-        (ctx->wrks.nbd = malloc(n*sizeof(integer)))   == NULL ||
-        (ctx->wrks.wa = malloc(n_wa*sizeof(double)))  == NULL ||
-        (ctx->wrks.iwa = malloc(3*n*sizeof(integer))) == NULL) {
+#ifdef OLD_LBFGSB_VERSION
+   long n_wa = (2*m + 4)*n + 12*m*(m + 1);
+#else
+    long n_wa = (2*m + 5)*n + (11*m + 8)*m;
+#endif
+    if ((ctx->lower    = ZEROS(n,    double))  == NULL ||
+        (ctx->upper    = ZEROS(n,    double))  == NULL ||
+        (ctx->wrks.nbd = ZEROS(n,    integer)) == NULL ||
+        (ctx->wrks.wa  = ZEROS(n_wa, double))  == NULL ||
+        (ctx->wrks.iwa = ZEROS(3*n,  integer)) == NULL) {
         lbfgsb_destroy(ctx);
         return NULL;
     }
@@ -149,23 +157,24 @@ lbfgsb_context* lbfgsb_create(
     return ctx;
 }
 
-static inline void free_memory(void** ptr_of_ptr)
-{
-    void* ptr = *ptr_of_ptr;
-    if (ptr != NULL) {
-        *ptr_of_ptr = NULL;
-        free(ptr);
-    }
-}
+
+#define free_memory(ptr)                        \
+    do {                                        \
+        void *ptr_ = (ptr);                     \
+        if (ptr_ != NULL) {                     \
+            (ptr) = NULL;                       \
+            free(ptr_);                         \
+        }                                       \
+    } while (0)
 
 void lbfgsb_destroy(lbfgsb_context* ctx)
 {
     if (ctx != NULL) {
-        free_memory((void**)&ctx->lower);
-        free_memory((void**)&ctx->upper);
-        free_memory((void**)&ctx->wrks.nbd);
-        free_memory((void**)&ctx->wrks.wa);
-        free_memory((void**)&ctx->wrks.iwa);
+        free_memory(ctx->lower);
+        free_memory(ctx->upper);
+        free_memory(ctx->wrks.nbd);
+        free_memory(ctx->wrks.wa);
+        free_memory(ctx->wrks.iwa);
         free(ctx);
     }
 }
@@ -206,7 +215,7 @@ static void check_bounds(
                 bound[i] = 0;
             }
         }
-#if 0 // Not needed, this is done by mai L-BFGS-B subroutine.
+#if 0 // Not needed, this is done by main L-BFGS-B subroutine.
         if (x[i] > hi) {
             x[i] = hi;
         }
