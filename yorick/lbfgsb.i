@@ -165,7 +165,7 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=, cputime=,
     best_x = [];   // corresponding variables
     evals = 0;     // number of calls to fg
     iters = 0;     // number of iterations
-    if (verb) {
+    if (verb > 0) {
         time_index = (cputime ? 1 : 3);
         elapsed = array(double, 3);
         timer, elapsed;
@@ -187,6 +187,15 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=, cputime=,
                     best_f = f;
                     best_g = g;
                     best_x = x;
+                }
+                if (evals == 1 && verb > 0) {
+                    write, output, format="%s%s\n%s%s\n",
+                        "# Iter.   Time (ms)   Eval.   Skips ",
+                        "       Obj. Func.           Grad.       Step",
+                        "# ----------------------------------",
+                        "-----------------------------------------------";
+                    gnorm = lbfgsb_pgnorm2(ctx, x, g);
+                    _lbfgsb_print;
                 }
                 continue;
             }
@@ -215,35 +224,21 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=, cputime=,
                         ctx, "STOP: ‖Δx| ≤ max(xatol, xrtol⋅‖x‖)");
                 }
             }
-            if (verb) {
-                timer, elapsed;
-                t = (elapsed(time_index) - t0)*1E3; // elapsed milliseconds
-                if (iters < 1) {
-                    write, output, format="%s%s\n%s%s\n",
-                        "# Iter.   Time (ms)   Eval.   Skips ",
-                        "       Obj. Func.           Grad.       Step",
-                        "# ----------------------------------",
-                        "-----------------------------------------------";
-                }
-                skips = ctx.nskips;
-                alpha = (iters < 1 ? 0.0 : ctx.step);
-                write, output,
-                    format="%7d %11.3f %7d %7d %23.15e %11.3e %11.3e\n",
-                    iters, t, evals, skips, f, gnorm, alpha;
-            }
-            iters += 1;
+            ++iters;
             if (iters >= maxiter) {
                 task = lbfgsb_stop(
                     ctx, "WARNING: Too many algorithm iterations");
-            } else {
-                if (evals > 1) {
-                    x0 = x;
-                }
-                continue;
             }
         }
-
-        break;
+        if (verb > 0 && ((iters % verb) == 0 || task != LBFGSB_NEW_X)) {
+            _lbfgsb_print;
+        }
+        if (task != LBFGSB_NEW_X) {
+            break;
+        }
+        if (xtest && evals > 1) {
+            x0 = x;
+        }
     }
 
     // Restore best solution so far and return solution (and status).
@@ -252,10 +247,22 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=, cputime=,
         eq_nocopy, g, best_g;
         eq_nocopy, x, best_x;
     }
-    if (verb) {
+    if (verb > 0) {
         write, output, format="# Termination: %s\n", ctx.reason;
     }
     return x;
+}
+
+// Print LBFGSB iteration, all parameters are external.
+func _lbfgsb_print
+{
+    timer, elapsed;
+    t = (elapsed(time_index) - t0)*1E3; // elapsed milliseconds
+    skips = ctx.nskips;
+    alpha = (iters < 1 ? 0.0 : ctx.step);
+    write, output,
+        format="%7d %11.3f %7d %7d %23.15e %11.3e %11.3e\n",
+        iters, t, evals, skips, f, gnorm, alpha;
 }
 
 extern lbfgsb_create;
