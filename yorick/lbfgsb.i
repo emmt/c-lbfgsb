@@ -13,7 +13,7 @@
 
 if (is_func(plug_in)) plug_in, "ylbfgsb";
 
-func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
+func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=, cputime=,
             ftol=, gtol=, xtol=, maxiter=, maxeval=, verb=, output=)
 /* DOCUMENT x = lbfgsb(fg, x0, [f, g, status,] lower=, upper=, mem=);
 
@@ -94,6 +94,8 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
 
      - Keyword `output` specifies the file stream to print information.
 
+     - If keyword `cputime` is true, print the CPU time instead of the WALL
+       time.
 
    SEE ALSO: lbfgsb_config, lbfgsb_create, lbfgsb_iterate, lbfgsb_stop.
  */
@@ -164,9 +166,10 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
     evals = 0;     // number of calls to fg
     iters = 0;     // number of iterations
     if (verb) {
+        time_index = (cputime ? 1 : 3);
         elapsed = array(double, 3);
         timer, elapsed;
-        t0 = elapsed(3);
+        t0 = elapsed(time_index);
     }
     f0 = f;
     gtest = [];
@@ -214,7 +217,7 @@ func lbfgsb(fg, x0, &f, &g, &status, lower=, upper=, mem=,
             }
             if (verb) {
                 timer, elapsed;
-                t = (elapsed(3) - t0)*1E3; // elapsed milliseconds
+                t = (elapsed(time_index) - t0)*1E3; // elapsed milliseconds
                 if (iters < 1) {
                     write, output, format="%s%s\n%s%s\n",
                         "# Iter.   Time (ms)   Eval.   Skips ",
