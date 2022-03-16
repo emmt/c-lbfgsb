@@ -1,6 +1,6 @@
 # Wrappers for the L-BFGS-B algorithm
 
-This repository provides thin C and [Yorick](http://yorick.github.com/)
+This repository provides thin C and [Yorick](http://github.com/LLNL/yorick/)
 wrappers for using L-BFGS-B algorithm by Ciyou Zhu, Richard Byrd, Jorge Nocedal
 and Jose Luis Morales.
 

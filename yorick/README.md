@@ -1,7 +1,7 @@
 Yorick plugin for L-BFGS-B algorithm
 ====================================
 
-This directory provides the code for a [Yorick](http://yorick.github.com/)
+This directory provides the code for a [Yorick](http://github.com/LLNL/yorick/)
 plug-in to `LBFGSB`.
 
 
